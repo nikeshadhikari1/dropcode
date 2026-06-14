@@ -497,6 +497,68 @@ $createdShare = $createdCode ? $shares[$createdCode] : null;
   /* ── Hidden ── */
   .hidden { display: none !important; }
 
+  /* ── Recent codes ── */
+  .recent-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.15s;
+  }
+  .recent-card:hover { border-color: var(--accent); }
+  .recent-code {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--accent2);
+    min-width: 80px;
+  }
+  .recent-meta { flex: 1; min-width: 0; }
+  .recent-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recent-time {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .recent-time.expiring { color: #f59e0b; }
+  .recent-actions { display: flex; gap: 8px; align-items: center; }
+  .recent-btn {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .recent-btn:hover { border-color: var(--accent); color: var(--accent2); }
+  .recent-btn-del {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: color 0.15s;
+  }
+  .recent-btn-del:hover { color: var(--danger); }
+
   /* ── Footer ── */
   footer {
     margin-top: 48px;
@@ -623,6 +685,11 @@ $createdShare = $createdCode ? $shares[$createdCode] : null;
         <div class="field">
           <label for="textExpiry">Expires after</label>
           <select name="expiry" id="textExpiry">
+             <!--it should use seconds not hours like 60,1800,3600 <option value="60">1 minute</option>
+//<option value="1800">30 minutes</option>
+//<option value="3600">1 hour</option>
+//<option value="21600">6 hours</option>
+//<option value="86400">24 hours</option>-->
             <option value="0.5" selected>30 minutes</option>
             <option value="1">1 hour</option>
             <option value="6">6 hours</option>
@@ -655,7 +722,14 @@ $createdShare = $createdCode ? $shares[$createdCode] : null;
         <button type="submit" class="btn btn-primary" id="fileSubmitBtn" disabled>Choose a file first</button>
       </form>
     </div>
+      
+      <!-- Recent Codes -->
+      <div id="recentSection" style="display:none; margin-top: 8px;">
+        <div class="section-label">Recent codes</div>
+        <div id="recentList" style="display:flex; flex-direction:column; gap:10px;"></div>
+      </div>
   </div>
+
 
   <!-- Retrieve pane -->
   <div id="retrievePane" <?= $defaultTab === 'share' ? 'class="hidden"' : '' ?>>
@@ -687,6 +761,7 @@ $createdShare = $createdCode ? $shares[$createdCode] : null;
 
 <footer>
   <p>Files auto-delete when they expire · No account needed · Max 20 MB per file</p>
+    <p>Designed & Developed by <a href="https://nikesh41.com.np" target="_blank" rel="noopener noreferrer" style="color:var(--text);">Nikesh Adhikari</a></p>
 </footer>
 
 <script>
@@ -797,6 +872,97 @@ if (codeIn) {
     codeIn.setSelectionRange(pos, pos);
   });
 }
+
+// ── Recent codes (localStorage) ──────────────────────────────────────────────
+const STORAGE_KEY = 'dropcode_recent';
+
+function getRecent() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveRecent(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function addRecent(code, title, type, expiresAt) {
+  let list = getRecent().filter(r => r.code !== code); // avoid duplicates
+  list.unshift({ code, title, type, expiresAt });
+  list = list.slice(0, 10); // keep last 10
+  saveRecent(list);
+}
+
+function purgeRecent() {
+  const now = Math.floor(Date.now() / 1000);
+  const list = getRecent().filter(r => r.expiresAt > now);
+  saveRecent(list);
+  return list;
+}
+
+function timeLeftLabel(expiresAt) {
+  const diff = expiresAt - Math.floor(Date.now() / 1000);
+  if (diff <= 0) return 'Expired';
+  if (diff < 60) return diff + 's left';
+  if (diff < 3600) return Math.round(diff / 60) + 'm left';
+  if (diff < 86400) return (diff / 3600).toFixed(1) + 'h left';
+  return (diff / 86400).toFixed(1) + 'd left';
+}
+
+function renderRecent() {
+  const list = purgeRecent();
+  const section = document.getElementById('recentSection');
+  const container = document.getElementById('recentList');
+  if (!section || !container) return;
+
+  if (list.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  container.innerHTML = '';
+
+  list.forEach(item => {
+    const timeLabel = timeLeftLabel(item.expiresAt);
+    const isExpiring = (item.expiresAt - Math.floor(Date.now() / 1000)) < 1800;
+    const icon = item.type === 'file' ? '📁' : '📝';
+
+    const card = document.createElement('div');
+    card.className = 'recent-card';
+    card.innerHTML = `
+      <div class="recent-code">${item.code}</div>
+      <div class="recent-meta">
+        <div class="recent-title">${icon} ${item.title || 'Untitled'}</div>
+        <div class="recent-time ${isExpiring ? 'expiring' : ''}">⏱ ${timeLabel}</div>
+      </div>
+      <div class="recent-actions">
+        <a class="recent-btn" href="?action=retrieve&code=${item.code}">Retrieve</a>
+        <button class="recent-btn-del" onclick="deleteRecent('${item.code}')" title="Remove">✕</button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function deleteRecent(code) {
+  const list = getRecent().filter(r => r.code !== code);
+  saveRecent(list);
+  renderRecent();
+}
+
+// If we just created a code, save it to localStorage
+<?php if ($createdCode && $createdShare): ?>
+addRecent(
+  '<?= $createdCode ?>',
+  <?= json_encode($createdShare['title'] ?? ($createdShare['type'] === 'file' ? $createdShare['filename'] : 'Untitled')) ?>,
+  '<?= $createdShare['type'] ?>',
+  <?= $createdShare['expires_at'] ?>
+);
+<?php endif; ?>
+
+// Render on page load and refresh every 30s
+renderRecent();
+setInterval(renderRecent, 30000);
 </script>
 </body>
 </html>
