@@ -3,6 +3,7 @@
 A single-file PHP webapp to share files and text using a short 6-character code.
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Site-7c6af7?style=for-the-badge)](https://shareme.dephost.eu.org)
+## [🔗 View Live Demo](https://yourdomain.com)
 
 ## Features
 - Share **text** (notes, code snippets, passwords, etc.)
