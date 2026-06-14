@@ -6,7 +6,7 @@ A single-file PHP webapp to share files and text using a short 6-character code.
 - Share **text** (notes, code snippets, passwords, etc.)
 - Share **files** up to 20 MB
 - Auto-generated **6-character code** (e.g. `A1B2C3`)
-- **Expiry** options: 1h / 6h / 24h / 3d / 7d
+- **Expiry** options: 30minutes / 1h / 6h / 24h
 - Download counter per share
 - Dark, minimal UI — no database needed (JSON-based storage)
 
